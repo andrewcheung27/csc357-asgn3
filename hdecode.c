@@ -30,7 +30,9 @@ int getNextBit(int infile, char *nextByte, int *byteIndex) {
         if (read(infile, nextByte, 1) < 1) {
             return -1;
         }
-        *nextByte = htonl(*nextByte);
+
+        /* *nextByte = htonl(*nextByte); */
+        printf("*nextByte: %d\n", (unsigned char) *nextByte);
     }
 
     result = getFirstBit(*nextByte << *byteIndex);
@@ -47,17 +49,11 @@ void decode(HNode *htree, int infile, int outfile, unsigned long totalFreq) {
     int nextBit;
     HNode *node;
 
-    char *buf;
-    unsigned int bufSize;
-    unsigned int bufCapacity;
-
     byteIndex = 0;
-    bufSize = 0;
-    bufCapacity = BUF_CAPACITY;
-    buf = (char *) malloc(sizeof(char) * bufCapacity);
-
     node = htree;
-    while (totalFreq > 0 && (nextBit = getNextBit(infile, &nextByte, &byteIndex)) != -1) {
+    nextBit = getNextBit(infile, &nextByte, &byteIndex);
+
+    while (totalFreq > 0 && nextBit != -1) {
         if (nextBit == 0) {
             node = node->left;
         }
@@ -66,13 +62,12 @@ void decode(HNode *htree, int infile, int outfile, unsigned long totalFreq) {
         }
         if (node->left == NULL && node->right == NULL) {
             write(outfile, &(node->chr), 1);
-            /* writeBuf(node->chr, buf, &bufSize, &bufCapacity); */
             totalFreq--;
             node = htree;
         }
-    }
 
-    /* write(outfile, buf, bufSize); */
+        nextBit = getNextBit(infile, &nextByte, &byteIndex);
+    }
 }
 
 
@@ -87,7 +82,6 @@ int main(int argc, char *argv[]) {
     unsigned long totalFreq;
     unsigned int *freqTable;
     List *list;
-    HNode *temp;
 
 
     /* parse args */
@@ -163,14 +157,6 @@ int main(int argc, char *argv[]) {
     }
 
     list = constructHTree(freqTable, NUM_CHARS);
-    temp = list->head->data;
-    while (temp != NULL) {
-        if (temp->left == NULL && temp->right == NULL) {
-            printf("freq: %d, char: %c\n", temp->freq, temp->chr);
-        }
-        temp = temp->right;
-    }
-
 
 
     decode(list->head->data, infile, outfile, totalFreq);

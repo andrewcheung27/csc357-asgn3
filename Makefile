@@ -29,7 +29,6 @@ htree.o: htree.c
 
 t: test.c
 	$(CC) $(CFLAGS) -o t test.c
-	./t
 hd: hdecode
 	./hdecode peencode2 out2
 
