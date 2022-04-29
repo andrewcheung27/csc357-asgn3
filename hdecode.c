@@ -1,8 +1,7 @@
 /* decompresses a huffman-encoded file */
 
 #include <fcntl.h>
-#include "huffman.h"
-#include "list.h"  /* this also includes htree.h */
+#include "huffman.h"  /* this also includes "list.h" and "htree.h" */
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -12,24 +11,65 @@
 #define NUM_CHARS 256
 /* & MSB_MASK to zero out everything except the first bit in a char */
 #define MSB_MASK 0x80
+#define BUF_CAPACITY 4096
 
 
-static int nextBit(char byte) {
+static int getFirstBit(char byte) {
     if ((byte & MSB_MASK) < 0) {
         return 1;
     }
     return 0;
 }
 
+static int getNextBit(int infile, char *nextByte, int *byteIndex) {
+    int result;
 
-static void decode(HNode *htree, int infile, int outfile) {
-    char nextByte;
-    HNode *cur;
-
-    lseek(infile, 0, SEEK_SET);
-    while (read(infile, &nextByte, 1) == 1) {
-
+    if (*byteIndex == 0) {
+        /* read next byte in file, return -1 if nothing can be read */
+        if (read(infile, nextByte, 1) < 1) {
+            return -1;
+        }
+        *nextByte = htonl(*nextByte);
     }
+
+    result = getFirstBit(*nextByte << *byteIndex);
+
+    *byteIndex = (*byteIndex + 1) % 8;
+
+    return result;
+}
+
+
+static void decode(HNode *htree, int infile, int outfile, unsigned long totalFreq) {
+    char nextByte;
+    int byteIndex;
+    int nextBit;
+    HNode *node;
+
+    char *buf;
+    unsigned int bufSize;
+    unsigned int bufCapacity;
+
+    byteIndex = 0;
+    bufSize = 0;
+    bufCapacity = BUF_CAPACITY;
+    buf = (char *) malloc(sizeof(char) * bufCapacity);
+    lseek(infile, 0, SEEK_SET);
+    while (totalFreq > 0 && (nextBit = getNextBit(infile, &nextByte, &byteIndex)) != -1) {
+        if (nextBit == 0) {
+            node = node->left;
+        }
+        else {
+            node = node->right;
+        }
+        if (node->left == NULL && node->right == NULL) {
+            writeBuf(node->chr, buf, &bufSize, &bufCapacity);
+            totalFreq--;
+            node = htree;
+        }
+    }
+
+    write(outfile, buf, bufSize);
 }
 
 
@@ -43,8 +83,7 @@ int main(int argc, char *argv[]) {
     unsigned int freq;
     unsigned long totalFreq;
     unsigned int *freqTable;
-
-    HNode *htree;
+    List *list;
 
     /* parse args */
     while (argc-- > 1) {
@@ -95,37 +134,21 @@ int main(int argc, char *argv[]) {
      * so that it could fit in a byte */
     uniqueChars++;
     /* read compressed file header into freqTable */
+    totalFreq = 0;
     while ((uniqueChars--) > 0) {
         read(infile, &nextChar, 1);  /* 1 byte: character */
         read(infile, &freq, 4);  /* 4 bytes: frequency of the character */
+        freq = htonl(freq);  /* network byte order */
         freqTable[nextChar] = freq;
         totalFreq += freq;
     }
 
-    /* make huffman tree for decoding */
-    htree = constructHTree(freqTable, NUM_CHARS);
+    list = constructHTree(freqTable, NUM_CHARS);
 
-    decode(htree, infile, outfile);
-
-
-    /* lab 3 shit */
-
-    /* traverse tree (list->head->data) to get codes for each character */
-    codes = (char **) malloc(sizeof(char *) * codesLen);
-    for (i = 0; i < codesLen; i++) {
-        codes[i] = NULL;
-    }
-
-    createCodes(list->head->data, codes, NULL, 0);
-    printCodes(codes, codesLen);
+    decode(list->head->data, infile, outfile, totalFreq);
 
     /* cleanup */
-    for (i = 0; i < codesLen; i++) {
-        if (codes[i] != NULL) {
-            free(codes[i]);
-        }
-    }
-    free(codes);
+    free(freqTable);
     listDestroy(list);
     return 0;
 }

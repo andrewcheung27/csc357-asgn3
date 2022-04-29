@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -pedantic -ansi -g -Og
+CFLAGS = -Wall -pedantic -g -O3
 
 
 all: hencode hdecode

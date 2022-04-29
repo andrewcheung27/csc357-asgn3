@@ -1,12 +1,19 @@
 /* huffman compression functions shared between hencode and hdecode */
 
-#include "list.h"  /* this also includes htree.h */
+#include "huffman.h"
+#include <stdio.h>
+#include <stdlib.h>
 
 
-HNode *constructHTree(unsigned int *freqTable, size_t size) {
-    size_t i;
+List *constructHTree(unsigned int *freqTable, int size) {
+    List *list;
+    HNode *node1;
+    HNode *node2;
+    HNode *newNode;
+    int i;
 
     /* create list of huffman trees from freqTable */
+    list = listCreate();
     for (i = 0; i < size; i++) {
         if (freqTable[i] > 0) {
             node1 = htreeCreate(freqTable[i], i);
@@ -26,5 +33,21 @@ HNode *constructHTree(unsigned int *freqTable, size_t size) {
         listInsert2(list, newNode);
     }
 
-    return list->head->data;
+    return list;
+}
+
+
+void writeBuf(char c, char *buf, unsigned int *size, unsigned int *capacity) {
+    /* resize buf if needed */
+    if (*size >= *capacity) {
+        *capacity *= 2;
+        buf = (char *) realloc(buf, sizeof(char) * (*capacity));
+        if (buf == NULL) {
+            perror("realloc");
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    buf[*size] = c;
+    *size += 1;
 }
