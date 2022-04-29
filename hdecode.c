@@ -1,5 +1,6 @@
 /* decompresses a huffman-encoded file */
 
+#include <arpa/inet.h>  /* htonl */
 #include <fcntl.h>
 #include "huffman.h"  /* this also includes "list.h" and "htree.h" */
 #include <stdlib.h>
@@ -54,7 +55,7 @@ static void decode(HNode *htree, int infile, int outfile, unsigned long totalFre
     bufSize = 0;
     bufCapacity = BUF_CAPACITY;
     buf = (char *) malloc(sizeof(char) * bufCapacity);
-    lseek(infile, 0, SEEK_SET);
+    node = htree;
     while (totalFreq > 0 && (nextBit = getNextBit(infile, &nextByte, &byteIndex)) != -1) {
         if (nextBit == 0) {
             node = node->left;
@@ -85,33 +86,43 @@ int main(int argc, char *argv[]) {
     unsigned int *freqTable;
     List *list;
 
+
     /* parse args */
-    while (argc-- > 1) {
-        /* no more than two args, argc can't be more than 3 */
-        if (argc > 3) {
-            fprintf(stderr, "hdecode: extra operand `%s`", argv[3]);
+
+    /* no more than two args, argc can't be more than 3 */
+    if (argc > 3) {
+        fprintf(stderr, "hdecode: extra operand `%s`", argv[3]);
+        exit(EXIT_FAILURE);
+    }
+    /* second optional arg is name of outfile */
+    if (argc == 3) {
+        outfile = open(argv[2], O_RDWR | O_CREAT | O_TRUNC);
+        if (outfile < 0) {
+            fprintf(stderr, "%s: No such file or directory\n", argv[3]);
             exit(EXIT_FAILURE);
         }
-
-        /* second optional arg is name of outfile */
-        if (argc == 3) {
-            outfile = open(argv[2], O_RDWR | O_CREAT | O_TRUNC);
-            if (outfile < 0) {
-                fprintf(stderr, "%s: No such file or directory\n", argv[3]);
-            }
+    }
+    else {
+        outfile = STDOUT_FILENO;
+    }
+    /* first optional arg is name of infile */
+    if (argc == 3 || argc == 2) {
+        /* read from stdin if first arg is "-" */
+        if (!strcmp(argv[1], "-"))  {
+            infile = STDIN_FILENO;
         }
-
-        /* first optional arg is name if infile */
-        if (argc == 2) {
-            /* read from stdin if first arg is "-" */
-            if (!strcmp(argv[1], "-"))  {
-                infile = STDIN_FILENO;
-            }
-            else {
-                infile = open(argv[1], O_RDONLY);
+        else {
+            infile = open(argv[1], O_RDONLY);
+            if (infile < 0) {
+                fprintf(stderr, "%s: No such file or directory\n", argv[2]);
+                exit(EXIT_FAILURE);
             }
         }
     }
+    else {
+        infile = STDIN_FILENO;
+    }
+
 
     /* read the first byte, which contains the number of unique chars - 1.
      * if read() returns 0, then 0 bytes were read, so this is an empty file.
@@ -119,6 +130,7 @@ int main(int argc, char *argv[]) {
     if (read(infile, &uniqueChars, 1) < 1) {
         return 0;
     }
+
 
     /* freqTable[c] will have the frequency of character c in the infile */
     freqTable = (unsigned int *) malloc(sizeof(unsigned int) * NUM_CHARS);
@@ -129,6 +141,7 @@ int main(int argc, char *argv[]) {
     for (i = 0; i < NUM_CHARS; i++) {  /* initialize frequencies to 0 */
         freqTable[i] = 0;
     }
+
 
     /* increment uniqueChars because it was the number of unique chars - 1,
      * so that it could fit in a byte */
@@ -143,9 +156,12 @@ int main(int argc, char *argv[]) {
         totalFreq += freq;
     }
 
+
     list = constructHTree(freqTable, NUM_CHARS);
 
+
     decode(list->head->data, infile, outfile, totalFreq);
+
 
     /* cleanup */
     free(freqTable);
