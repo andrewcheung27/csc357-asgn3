@@ -27,8 +27,10 @@ htree.o: htree.c
 	$(CC) $(CFLAGS) -c -o htree.o htree.c
 
 
-d2: hdecode
-	~pn-cs357/demos/hencode test2 peencode2
+t: test.c
+	$(CC) $(CFLAGS) -o t test.c
+	./t
+hd: hdecode
 	./hdecode peencode2 out2
 
 
