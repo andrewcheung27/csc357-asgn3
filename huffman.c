@@ -77,6 +77,12 @@ ReadBuf *readBufCreate(int infile) {
 }
 
 
+void readBufDestroy(ReadBuf *rbuf) {
+    free(rbuf->buf);
+    free(rbuf);
+}
+
+
 /* puts the next byte of infile into nextByte. returns 0 if something was read,
  * or -1 if the end of the file has been reached */
 int readFromBuf(int infile, char *nextByte, ReadBuf *rbuf) {
@@ -114,6 +120,12 @@ WriteBuf *writeBufCreate(int outfile) {
     }
 
     return wbuf;
+}
+
+
+void writeBufDestroy(WriteBuf *wbuf) {
+    free(wbuf->buf);
+    free(wbuf);
 }
 
 

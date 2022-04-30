@@ -18,8 +18,12 @@ List *constructHTree(unsigned int *freqTable, int size);
 
 ReadBuf *readBufCreate(int infile);
 
+void readBufDestroy(ReadBuf *rbuf);
+
 int readFromBuf(int infile, char *nextByte, ReadBuf *rbuf);
 
 WriteBuf *writeBufCreate(int outfile);
+
+void writeBufDestroy(WriteBuf *wbuf);
 
 void writeToBuf(int outfile, char c, WriteBuf *wbuf);

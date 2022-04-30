@@ -72,6 +72,9 @@ void decode(HNode *htree, int infile, int outfile, unsigned long totalFreq) {
     if (wbuf->size > 0) {
         write(outfile, wbuf->buf, wbuf->size);
     }
+
+    readBufDestroy(rbuf);
+    writeBufDestroy(wbuf);
 }
 
 
