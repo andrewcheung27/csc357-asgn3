@@ -63,11 +63,11 @@ int hnodeCompare(HNode *node1, HNode *node2) {
         return -1;
     }
 
-    if (node1->chr > node2->chr) {
+    if ((unsigned char) node1->chr > (unsigned char) node2->chr) {
         return 1;
     }
 
-    if (node1->chr < node2->chr) {
+    if ((unsigned char) node1->chr < (unsigned char) node2->chr) {
         return -1;
     }
 

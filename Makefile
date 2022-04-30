@@ -28,9 +28,9 @@ htree.o: htree.c
 
 
 t: test.c
-	$(CC) $(CFLAGS) -o t test.c
+	$(CC) $(CFLAGS) -o t tests/test.c
 hd: hdecode
-	./hdecode peencode2 out2
+	./hdecode tests/peencode2 tests/out2
 
 
 clean:
