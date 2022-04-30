@@ -161,7 +161,7 @@ int main(int argc, char *argv[]) {
 
 
     /* freqTable[c] will have the frequency of character c in the infile */
-    freqTable = (unsigned int *) malloc(sizeof(unsigned int) * NUM_CHARS);
+    freqTable = (unsigned int *) malloc(sizeof(int) * NUM_CHARS);
     if (freqTable == NULL) {
         perror("malloc");
         exit(EXIT_FAILURE);
