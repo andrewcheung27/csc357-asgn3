@@ -1,12 +1,11 @@
 /* decompresses a huffman-encoded file */
 
-#include <arpa/inet.h>  /* htonl for linux */
+#include <arpa/inet.h>  /* htonl for linux??? */
 #include <fcntl.h>
 #include "huffman.h"  /* this also includes "list.h" and "htree.h" */
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <sys/stat.h>
 #include <unistd.h>  /* unix i/o */
 
 /* NUM_CHARS is the number of possible values for a char */
@@ -16,6 +15,7 @@
 #define MSB_MASK 0x80
 
 
+/* returns the first bit of a char as an int */
 int getFirstBit(char byte) {
     if ((byte & MSB_MASK) == MSB_MASK) {
         return 1;
@@ -24,12 +24,13 @@ int getFirstBit(char byte) {
 }
 
 
+/* returns the next bit of infile as an int, or -1 for end of file */
 int getNextBit(int infile, char *nextByte, int *byteIndex, ReadBuf *rbuf) {
     int result;
 
     if (*byteIndex == 0) {
         /* readBuf() sets nextByte to next byte of infile if there is one,
-         * returns -1 if end of the file */
+         * returns -1 for end of file */
         if (readFromBuf(infile, nextByte, rbuf) < 0) {
             return -1;
         }
@@ -47,6 +48,7 @@ void decode(HNode *htree, int infile, int outfile, unsigned long totalFreq) {
     int nextBit;
     HNode *node;
 
+    /* buffered read and write */
     ReadBuf *rbuf = readBufCreate(infile);
     WriteBuf *wbuf = writeBufCreate(outfile);
 
@@ -73,11 +75,13 @@ void decode(HNode *htree, int infile, int outfile, unsigned long totalFreq) {
         write(outfile, wbuf->buf, wbuf->size);
     }
 
+    /* cleanup */
     readBufDestroy(rbuf);
     writeBufDestroy(wbuf);
 }
 
 
+/* initializes infile and outfile */
 void parseArgs(int argc, char *argv[], int *infile, int *outfile) {
     /* no more than two args, argc can't be more than 3 */
     if (argc > 3) {
