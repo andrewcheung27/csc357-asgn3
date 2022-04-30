@@ -15,8 +15,6 @@
 /* & MSB_MASK to zero out everything except the first bit in a char */
 #define MSB_MASK 0x80
 
-#define BUF_CAPACITY 4096
-
 
 int getFirstBit(char byte) {
     if ((byte & MSB_MASK) == MSB_MASK) {
@@ -26,12 +24,13 @@ int getFirstBit(char byte) {
 }
 
 
-int getNextBit(int infile, char *nextByte, int *byteIndex) {
+int getNextBit(int infile, char *nextByte, int *byteIndex, ReadBuf *rbuf) {
     int result;
 
     if (*byteIndex == 0) {
-        /* read next byte in file, return -1 if nothing can be read */
-        if (read(infile, nextByte, 1) < 1) {
+        /* readBuf() sets nextByte to next byte of infile if there is one,
+         * returns -1 if end of the file */
+        if (readFromBuf(infile, nextByte, rbuf) < 0) {
             return -1;
         }
     }
@@ -48,22 +47,13 @@ void decode(HNode *htree, int infile, int outfile, unsigned long totalFreq) {
     int nextBit;
     HNode *node;
 
-    struct stat infileStat;
-    char *buf;
-    int bufSize;
-    int bufCapacity;
+    ReadBuf *rbuf = readBufCreate(infile);
+    WriteBuf *wbuf = writeBufCreate(outfile);
 
-    /* set buf capacity to file's block size if possible */
-    bufCapacity = BUF_CAPACITY;
-    if (fstat(infile, &infileStat) == 0) {
-        bufCapacity = infileStat.st_blksize;
-    }
-    buf = (char *) malloc(sizeof(char) * bufCapacity);
-    bufSize = 0;
     byteIndex = 0;
-
     node = htree;
-    while (totalFreq > 0 && (nextBit = getNextBit(infile, &nextByte, &byteIndex)) != -1) {
+
+    while (totalFreq > 0 && (nextBit = getNextBit(infile, &nextByte, &byteIndex, rbuf)) != -1) {
         if (nextBit == 0) {
             node = node->left;
         }
@@ -72,15 +62,15 @@ void decode(HNode *htree, int infile, int outfile, unsigned long totalFreq) {
         }
         /* write character if this is a leaf */
         if (node->left == NULL && node->right == NULL) {
-            writeBuf(outfile, node->chr, buf, &bufSize, &bufCapacity);
+            writeToBuf(outfile, node->chr, wbuf);
             totalFreq--;
             node = htree;
         }
     }
 
     /* write anything left in the buffer */
-    if (bufSize > 0) {
-        write(outfile, buf, bufSize);
+    if (wbuf->size > 0) {
+        write(outfile, wbuf->buf, wbuf->size);
     }
 }
 
