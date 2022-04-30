@@ -88,7 +88,9 @@ void decode(HNode *htree, int infile, int outfile, unsigned long totalFreq) {
 void parseArgs(int argc, char *argv[], int *infile, int *outfile) {
     /* no more than two args, argc can't be more than 3 */
     if (argc > 3) {
-        fprintf(stderr, "hdecode: extra operand `%s`\n", argv[3]);
+        fprintf(stderr,
+                "hdecode: extra operand `%s`\nusage: hdecode [(infile | -)] [outfile]\n",
+                argv[3]);
         exit(EXIT_FAILURE);
     }
 
@@ -119,11 +121,15 @@ void parseArgs(int argc, char *argv[], int *infile, int *outfile) {
 
     /* error messages if open() didn't work */
     if (*infile < 0) {
-        fprintf(stderr, "%s: No such file or directory\n", argv[2]);
+        fprintf(stderr,
+                "%s: No such file or directory\nusage: hdecode [(infile | -)] [outfile]\n",
+                argv[2]);
         exit(EXIT_FAILURE);
     }
     if (*outfile < 0) {
-        fprintf(stderr, "%s: No such file or directory\n", argv[3]);
+        fprintf(stderr,
+                "%s: No such file or directory\nusage: hdecode [(infile | -)] [outfile]\n",
+                argv[3]);
         exit(EXIT_FAILURE);
     }
 }
