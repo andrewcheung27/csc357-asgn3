@@ -1,8 +1,7 @@
 /* huffman compression functions shared between hencode and hdecode */
 
 #include "huffman.h"
-#include <stdio.h>
-#include <stdlib.h>
+#include <unistd.h>
 
 
 List *constructHTree(unsigned int *freqTable, int size) {
@@ -37,15 +36,11 @@ List *constructHTree(unsigned int *freqTable, int size) {
 }
 
 
-void writeBuf(char c, char *buf, unsigned int *size, unsigned int *capacity) {
+void writeBuf(int outfile, char c, char *buf, int *size, int *capacity) {
     /* resize buf if needed */
     if (*size >= *capacity) {
-        *capacity *= 2;
-        buf = (char *) realloc(buf, sizeof(char) * (*capacity));
-        if (buf == NULL) {
-            perror("realloc");
-            exit(EXIT_FAILURE);
-        }
+        write(outfile, buf, *size);
+        *size = 0;
     }
 
     buf[*size] = c;

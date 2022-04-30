@@ -1,17 +1,20 @@
 /* decompresses a huffman-encoded file */
 
-#include <arpa/inet.h>  /* htonl */
+#include <arpa/inet.h>  /* htonl for linux */
 #include <fcntl.h>
 #include "huffman.h"  /* this also includes "list.h" and "htree.h" */
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
+#include <sys/stat.h>
+#include <unistd.h>  /* unix i/o */
 
 /* NUM_CHARS is the number of possible values for a char */
 #define NUM_CHARS 256
+
 /* & MSB_MASK to zero out everything except the first bit in a char */
 #define MSB_MASK 0x80
+
 #define BUF_CAPACITY 4096
 
 
@@ -22,6 +25,7 @@ int getFirstBit(char byte) {
     return 0;
 }
 
+
 int getNextBit(int infile, char *nextByte, int *byteIndex) {
     int result;
 
@@ -30,15 +34,10 @@ int getNextBit(int infile, char *nextByte, int *byteIndex) {
         if (read(infile, nextByte, 1) < 1) {
             return -1;
         }
-
-        /* *nextByte = htonl(*nextByte); */
-        printf("*nextByte: %d\n", (unsigned char) *nextByte);
     }
 
     result = getFirstBit(*nextByte << *byteIndex);
-
-    *byteIndex = (*byteIndex + 1) % 8;
-
+    *byteIndex = (*byteIndex + 1) % 8;  /* which bit in the byte */
     return result;
 }
 
@@ -49,11 +48,22 @@ void decode(HNode *htree, int infile, int outfile, unsigned long totalFreq) {
     int nextBit;
     HNode *node;
 
-    byteIndex = 0;
-    node = htree;
-    nextBit = getNextBit(infile, &nextByte, &byteIndex);
+    struct stat infileStat;
+    char *buf;
+    int bufSize;
+    int bufCapacity;
 
-    while (totalFreq > 0 && nextBit != -1) {
+    /* set buf capacity to file's block size if possible */
+    bufCapacity = BUF_CAPACITY;
+    if (fstat(infile, &infileStat) == 0) {
+        bufCapacity = infileStat.st_blksize;
+    }
+    buf = (char *) malloc(sizeof(char) * bufCapacity);
+    bufSize = 0;
+    byteIndex = 0;
+
+    node = htree;
+    while (totalFreq > 0 && (nextBit = getNextBit(infile, &nextByte, &byteIndex)) != -1) {
         if (nextBit == 0) {
             node = node->left;
         }
@@ -61,12 +71,58 @@ void decode(HNode *htree, int infile, int outfile, unsigned long totalFreq) {
             node = node->right;
         }
         if (node->left == NULL && node->right == NULL) {
-            write(outfile, &(node->chr), 1);
+            writeBuf(outfile, node->chr, buf, &bufSize, &bufCapacity);
             totalFreq--;
             node = htree;
         }
+    }
 
-        nextBit = getNextBit(infile, &nextByte, &byteIndex);
+    /* write anything left in the buffer */
+    if (bufSize > 0) {
+        write(outfile, buf, bufSize);
+    }
+}
+
+
+void parseArgs(int argc, char *argv[], int *infile, int *outfile) {
+    /* no more than two args, argc can't be more than 3 */
+    if (argc > 3) {
+        fprintf(stderr, "hdecode: extra operand `%s`\n", argv[3]);
+        exit(EXIT_FAILURE);
+    }
+
+    /* second optional arg is name of outfile,
+     * default is stdout */
+    if (argc == 3) {
+        *outfile = open(argv[2], O_RDWR | O_CREAT | O_TRUNC,
+                        S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+    }
+    else {
+        *outfile = STDOUT_FILENO;
+    }
+
+    /* first optional arg is name of infile,
+     * default is stdin */
+    if (argc == 2 || argc == 3) {
+        /* read from stdin if first arg is "-" */
+        if (!strcmp(argv[1], "-"))  {
+            *infile = STDIN_FILENO;
+        }
+        else {
+            *infile = open(argv[1], O_RDONLY);
+        }
+    }
+    else {
+        *infile = STDIN_FILENO;
+    }
+
+    if (*outfile < 0) {
+        fprintf(stderr, "%s: No such file or directory\n", argv[3]);
+        exit(EXIT_FAILURE);
+    }
+    if (*infile < 0) {
+        fprintf(stderr, "%s: No such file or directory\n", argv[2]);
+        exit(EXIT_FAILURE);
     }
 }
 
@@ -84,44 +140,7 @@ int main(int argc, char *argv[]) {
     List *list;
 
 
-    /* parse args */
-
-    /* no more than two args, argc can't be more than 3 */
-    if (argc > 3) {
-        fprintf(stderr, "hdecode: extra operand `%s`\n", argv[3]);
-        exit(EXIT_FAILURE);
-    }
-
-    /* second optional arg is name of outfile */
-    if (argc == 3) {
-        outfile = open(argv[2], O_RDWR | O_CREAT | O_TRUNC);
-    }
-    else {
-        outfile = STDOUT_FILENO;
-    }
-
-    /* first optional arg is name of infile */
-    if (argc == 2 || argc == 3) {
-        /* read from stdin if first arg is "-" */
-        if (!strcmp(argv[1], "-"))  {
-            infile = STDIN_FILENO;
-        }
-        else {
-            infile = open(argv[1], O_RDONLY);
-        }
-    }
-    else {
-        infile = STDIN_FILENO;
-    }
-
-    if (outfile < 0) {
-        fprintf(stderr, "%s: No such file or directory\n", argv[3]);
-        exit(EXIT_FAILURE);
-    }
-    if (infile < 0) {
-        fprintf(stderr, "%s: No such file or directory\n", argv[2]);
-        exit(EXIT_FAILURE);
-    }
+    parseArgs(argc, argv, &infile, &outfile);
 
 
     /* read the first byte, which contains the number of unique chars - 1.
@@ -146,8 +165,8 @@ int main(int argc, char *argv[]) {
     /* increment uniqueChars because it was the number of unique chars - 1,
      * so that it could fit in a byte */
     uniqueChars++;
-    /* read compressed file header into freqTable */
     totalFreq = 0;
+    /* read compressed file header into freqTable */
     while ((uniqueChars--) > 0) {
         read(infile, &nextChar, 1);  /* 1 byte: character */
         read(infile, &freq, 4);  /* 4 bytes: frequency of the character */
@@ -156,9 +175,12 @@ int main(int argc, char *argv[]) {
         totalFreq += freq;
     }
 
+
+    /* huffman tree */
     list = constructHTree(freqTable, NUM_CHARS);
 
 
+    /* decompress and write to outfile */
     decode(list->head->data, infile, outfile, totalFreq);
 
 

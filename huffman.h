@@ -3,4 +3,4 @@
 
 List *constructHTree(unsigned int *freqTable, int size);
 
-void writeBuf(char c, char *buf, unsigned int *size, unsigned int *capacity);
+void writeBuf(int outfile, char c, char *buf, int *size, int *capacity);
