@@ -70,6 +70,7 @@ void decode(HNode *htree, int infile, int outfile, unsigned long totalFreq) {
         else {
             node = node->right;
         }
+        /* write character if this is a leaf */
         if (node->left == NULL && node->right == NULL) {
             writeBuf(outfile, node->chr, buf, &bufSize, &bufCapacity);
             totalFreq--;
@@ -91,16 +92,6 @@ void parseArgs(int argc, char *argv[], int *infile, int *outfile) {
         exit(EXIT_FAILURE);
     }
 
-    /* second optional arg is name of outfile,
-     * default is stdout */
-    if (argc == 3) {
-        *outfile = open(argv[2], O_RDWR | O_CREAT | O_TRUNC,
-                        S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
-    }
-    else {
-        *outfile = STDOUT_FILENO;
-    }
-
     /* first optional arg is name of infile,
      * default is stdin */
     if (argc == 2 || argc == 3) {
@@ -116,12 +107,23 @@ void parseArgs(int argc, char *argv[], int *infile, int *outfile) {
         *infile = STDIN_FILENO;
     }
 
-    if (*outfile < 0) {
-        fprintf(stderr, "%s: No such file or directory\n", argv[3]);
-        exit(EXIT_FAILURE);
+    /* second optional arg is name of outfile,
+     * default is stdout */
+    if (argc == 3) {
+        *outfile = open(argv[2], O_RDWR | O_CREAT | O_TRUNC,
+                        S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
     }
+    else {
+        *outfile = STDOUT_FILENO;
+    }
+
+    /* error messages if open() didn't work */
     if (*infile < 0) {
         fprintf(stderr, "%s: No such file or directory\n", argv[2]);
+        exit(EXIT_FAILURE);
+    }
+    if (*outfile < 0) {
+        fprintf(stderr, "%s: No such file or directory\n", argv[3]);
         exit(EXIT_FAILURE);
     }
 }
@@ -140,6 +142,7 @@ int main(int argc, char *argv[]) {
     List *list;
 
 
+    /* parse args to initialize infile and outfile */
     parseArgs(argc, argv, &infile, &outfile);
 
 
@@ -170,7 +173,7 @@ int main(int argc, char *argv[]) {
     while ((uniqueChars--) > 0) {
         read(infile, &nextChar, 1);  /* 1 byte: character */
         read(infile, &freq, 4);  /* 4 bytes: frequency of the character */
-        freq = htonl(freq);  /* network byte order */
+        freq = htonl(freq);  /* network byte order for the integer */
         freqTable[nextChar] = freq;
         totalFreq += freq;
     }

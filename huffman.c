@@ -37,7 +37,7 @@ List *constructHTree(unsigned int *freqTable, int size) {
 
 
 void writeBuf(int outfile, char c, char *buf, int *size, int *capacity) {
-    /* resize buf if needed */
+    /* write to outfile when buffer is full */
     if (*size >= *capacity) {
         write(outfile, buf, *size);
         *size = 0;
