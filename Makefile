@@ -9,8 +9,6 @@ all: hencode hdecode
 
 hencode: hencode.o huffman.o list.o htree.o
 	$(CC) $(CFLAGS) -o hencode hencode.o huffman.o list.o htree.o
-
-
 hdecode: hdecode.o huffman.o list.o htree.o
 	$(CC) $(CFLAGS) -o hdecode hdecode.o huffman.o list.o htree.o
 
@@ -27,14 +25,39 @@ htree.o: htree.c
 	$(CC) $(CFLAGS) -c -o htree.o htree.c
 
 
-t: tests/test.c
-	$(CC) $(CFLAGS) -o t tests/test.c
+tests: hencode hdecode
+	make two
+	make frank
+	make pride
+	make dick
+	make war
+
+
 two: hencode hdecode
 	./hencode tests/test2 tests/code2
 	./hdecode tests/code2 tests/out2
+	diff tests/test2 tests/out2
+	rm tests/code2 tests/out2
+frank: hencode hdecode
+	./hencode tests/frank tests/agentfrank
+	./hdecode tests/agentfrank tests/myfrank
+	diff tests/frank tests/myfrank
+	rm tests/agentfrank tests/myfrank
+pride: hencode hdecode
+	./hencode tests/pride tests/secretpride
+	./hdecode tests/secretpride tests/mypride
+	diff tests/pride tests/mypride
+	rm tests/secretpride tests/mypride
+dick: hencode hdecode
+	./hencode tests/dick tests/secretdick
+	./hdecode tests/secretdick tests/mydick
+	diff tests/dick tests/mydick
+	rm tests/secretdick tests/mydick
 war: hencode hdecode
 	./hencode tests/warandpeace tests/codewar
 	./hdecode tests/codewar tests/mywar
+	diff tests/warandpeace tests/mywar
+	rm tests/codewar tests/mywar
 
 
 clean:
