@@ -1,6 +1,6 @@
 /* decompresses a huffman-encoded file */
 
-#include <arpa/inet.h>  /* htonl for linux??? */
+#include <arpa/inet.h>  /* htonl/ntohl for linux??? */
 #include <fcntl.h>
 #include "huffman.h"  /* this also includes "list.h" and "htree.h" */
 #include <stdlib.h>
@@ -20,6 +20,7 @@ int getFirstBit(char byte) {
     if ((byte & MSB_MASK) == MSB_MASK) {
         return 1;
     }
+
     return 0;
 }
 
@@ -43,6 +44,7 @@ int getNextBit(int infile, unsigned char *nextByte, int *byteIndex,
 }
 
 
+/* uses infile to traverse huffman tree, writing the encoded file to outfile */
 void decode(int infile, int outfile, HNode *htree, unsigned long totalFreq) {
     unsigned char nextByte;
     int byteIndex;
@@ -56,6 +58,7 @@ void decode(int infile, int outfile, HNode *htree, unsigned long totalFreq) {
     byteIndex = 0;
     node = htree;
 
+    /* traverse huffman tree */
     while (totalFreq > 0 && (nextBit = getNextBit(infile, &nextByte, &byteIndex, rbuf)) != -1) {
         if (nextBit == 0) {
             node = node->left;
@@ -121,13 +124,13 @@ void parseArgs(int argc, char *argv[], int *infile, int *outfile) {
     if (*infile < 0) {
         fprintf(stderr,
                 "%s: No such file or directory\nusage: hdecode [(infile | -)] [outfile]\n",
-                argv[2]);
+                argv[1]);
         exit(EXIT_FAILURE);
     }
     if (*outfile < 0) {
         fprintf(stderr,
                 "%s: No such file or directory\nusage: hdecode [(infile | -)] [outfile]\n",
-                argv[3]);
+                argv[2]);
         exit(EXIT_FAILURE);
     }
 }
@@ -145,20 +148,16 @@ int main(int argc, char *argv[]) {
     unsigned int *freqTable;
     List *list;
 
-
     /* parse args to initialize infile and outfile */
     parseArgs(argc, argv, &infile, &outfile);
-
 
     /* write nothing if infile is empty */
     if (fileSize(infile) == 0) {
         return 0;
     }
 
-
     /* read the first byte, which contains the number of unique chars - 1 */
     read(infile, &uniqueChars, 1);
-
 
     /* freqTable[c] will have the frequency of character c in the infile */
     freqTable = (unsigned int *) malloc(sizeof(int) * NUM_CHARS);
@@ -170,7 +169,6 @@ int main(int argc, char *argv[]) {
         freqTable[i] = 0;
     }
 
-
     /* increment uniqueChars because it was the number of unique chars - 1,
      * so that it could fit in a byte */
     uniqueChars++;
@@ -179,19 +177,14 @@ int main(int argc, char *argv[]) {
     while ((uniqueChars--) > 0) {
         read(infile, &nextChar, 1);  /* 1 byte: character */
         read(infile, &freq, 4);  /* 4 bytes: frequency of the character */
-        freq = htonl(freq);  /* network byte order for the integer */
+        freq = ntohl(freq);  /* convert from network byte order to host order */
         freqTable[nextChar] = freq;
         totalFreq += freq;
     }
 
-
-    /* huffman tree */
     list = constructHTree(freqTable, NUM_CHARS);
 
-
-    /* decompress and write to outfile */
     decode(infile, outfile, list->head->data, totalFreq);
-
 
     /* cleanup */
     free(freqTable);

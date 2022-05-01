@@ -105,7 +105,7 @@ int readFromBuf(int infile, unsigned char *nextByte, ReadBuf *rbuf) {
 
     /* set nextByte to the next byte in the buffer, return 0 for success */
     *nextByte = (rbuf->buf)[rbuf->index];
-    rbuf->index++;
+    (rbuf->index)++;
     return 0;
 }
 
@@ -144,5 +144,5 @@ void writeToBuf(int outfile, char c, WriteBuf *wbuf) {
     }
 
     (wbuf->buf)[wbuf->size] = c;
-    wbuf->size++;
+    (wbuf->size)++;
 }
