@@ -1,4 +1,4 @@
-/* decompresses a huffman-encoded file */
+/* compresses a file with the huffman algorithm */
 
 #include <arpa/inet.h>  /* htonl/ntohl for linux??? */
 #include <fcntl.h>
@@ -6,7 +6,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <sys/stat.h>
 #include <unistd.h>  /* unix i/o */
 
 /* NUM_CHARS is the number of possible values for a char */
@@ -58,7 +57,7 @@ void writeHeader(int outfile, unsigned int *freqTable) {
 
 void writeCode(int outfile, char *strCode, unsigned char *byte,
                unsigned int *index, WriteBuf *wbuf) {
-    int i = 0;
+    int i = 0;  /* indexing strCode */
 
     while (strCode[i++]) {
         if (*index == 0) {
