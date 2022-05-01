@@ -16,11 +16,13 @@ typedef struct WriteBuf {
 
 List *constructHTree(unsigned int *freqTable, int size);
 
+int fileSize(int fd);
+
 ReadBuf *readBufCreate(int infile);
 
 void readBufDestroy(ReadBuf *rbuf);
 
-int readFromBuf(int infile, char *nextByte, ReadBuf *rbuf);
+int readFromBuf(int infile, unsigned char *nextByte, ReadBuf *rbuf);
 
 WriteBuf *writeBufCreate(int outfile);
 

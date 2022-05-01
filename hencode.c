@@ -1,72 +1,139 @@
-/* encodes a file using huffman compression */
+/* decompresses a huffman-encoded file */
 
-#include <getopt.h>
-#include "list.h"
+#include <arpa/inet.h>  /* htonl for linux??? */
+#include <fcntl.h>
+#include "huffman.h"  /* this also includes "list.h" and "htree.h" */
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <unistd.h>  /* unix i/o */
 
+/* NUM_CHARS is the number of possible values for a char */
 #define NUM_CHARS 256
+
+/* & MSB_MASK to zero out everything except the first bit in a char */
+#define MSB_MASK 0x80
+
+
+void countChars(int infile, unsigned int *freqTable) {
+    unsigned char *nextChar;
+    ReadBuf *rbuf = readBufCreate(infile);
+
+    while (readFromBuf(infile, nextChar, rbuf) == 0) {
+        freqTable[nextChar]++;
+    }
+
+    readBufDestroy(rbuf);
+}
+
+
+void encode(int infile, int outfile, char **codes) {
+    unsigned char nextChar;
+    unsigned char writeByte;
+    int writeByteIndex;
+    ReadBuf *rbuf = readBufCreate(infile);
+    WriteBuf *wbuf = write(outfile);
+
+    while ((nextChar = readFromBuf(infile, &nextChar, rbuf)) == 0) {
+        writeCode()
+    }
+}
+
+
+/* initializes infile and outfile */
+void parseArgs(int argc, char *argv[], int *infile, int *outfile) {
+    /* no more than two args, argc can't be more than 3 */
+    if (argc > 3) {
+        fprintf(stderr, "hencode: extra operand `%s`\nusage: hencode infile [outfile]\n", argv[3]);
+        exit(EXIT_FAILURE);
+    }
+
+    /* argv[1] infile is required */
+    if (argc < 2) {
+        fprintf(stderr, "usage: hencode infile [outfile]\n");
+        exit(EXIT_FAILURE);
+    }
+
+    /* infile will be the first arg */
+    *infile = open(argv[1], O_RDONLY);
+
+    /* outfile is the second arg if provided, otherwise stdout */
+    if (argc == 3) {
+        *outfile = open(argv[2], O_RDWR | O_CREAT | O_TRUNC,
+                        S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+    }
+    else {
+        *outfile = STDOUT_FILENO;
+    }
+
+    /* error messages if open() didn't work */
+    if (*infile < 0) {
+        fprintf(stderr, "%s: No such file or directory\n", argv[2]);
+        exit(EXIT_FAILURE);
+    }
+    if (*outfile < 0) {
+        fprintf(stderr, "%s: No such file or directory\n", argv[3]);
+        exit(EXIT_FAILURE);
+    }
+}
 
 
 int main(int argc, char *argv[]) {
-    int option;
-    int i;
-    FILE *file;
+    int infile;
+    int outfile;
 
-    int *charHistogram;
+    int i;
+    unsigned char uniqueChars;
+    unsigned char nextChar;
+    unsigned int freq;
+    unsigned long totalFreq;
+    unsigned int *freqTable;
+
     char **codes;
-    int codesLen = NUM_CHARS;
+
+    List *list;
     HNode *node1;
     HNode *node2;
     HNode *newNode;
-    List *list = listCreate();
 
-    /* use getopt to make sure there are no options */
-    while ((option = getopt(argc, argv, ":")) != -1) {
-        if (option == '?') {
-            fprintf(stderr,
-                    "No options accepted.\nusage: hencode infile [outfile]\n");
-            exit(EXIT_FAILURE);
-        }
+
+    /* parse args to initialize infile and outfile */
+    parseArgs(argc, argv, &infile, &outfile);
+
+
+    /* write nothing if infile is empty */
+    if (fileSize(infile) == 0) {
+        return 0;
     }
 
-    /* make sure a filename is provided */
-    if (optind == argc) {
-        fprintf(stderr, "Filename required.\nusage: hencode infile [outfile]\n");
-        exit(EXIT_FAILURE);
-    }
 
-    /* get filename from args and open file */
-    file = fopen(argv[optind++], "r");
-    if (file == NULL) {
-        fprintf(stderr,
-                "%s: No such file or directory\nusage: hencode infile [outfile]\n",
-                argv[optind]);
-        exit(EXIT_FAILURE);
-    }
-
-    charHistogram = (int *) malloc(sizeof(int) * NUM_CHARS);
-    if (charHistogram == NULL) {
+    /* freqTable[c] will have the frequency of character c in the infile */
+    freqTable = (unsigned int *) malloc(sizeof(int) * NUM_CHARS);
+    if (freqTable == NULL) {
         perror("malloc");
         exit(EXIT_FAILURE);
     }
-    /* initialize histogram values to 0 */
-    for (i = 0; i < NUM_CHARS; i++) {
-        charHistogram[i] = 0;
+    for (i = 0; i < NUM_CHARS; i++) {  /* initialize frequencies to 0 */
+        freqTable[i] = 0;
     }
 
-    /* count characters, insert a huffman tree for each unique character
-     * into the sorted list */
-    countChars(file, charHistogram);
-    fclose(file);
+
+    /* count all chars in infile and put them in freqTable */
+    countChars(infile, freqTable);
+
+
+    /* put freqTable into sorted linked list of huffman trees */
+    list = listCreate();
     for (i = 0; i < NUM_CHARS; i++) {
-        if (charHistogram[i] > 0) {
-            node1 = htreeCreate(charHistogram[i], i);
+        if (freqTable[i] > 0) {
+            node1 = htreeCreate(freqTable[i], i);
             listInsert(list, node1);
         }
     }
-    free(charHistogram);
 
+
+    /* combine and re-insert htrees until we have only one */
     while (list->size > 1) {
         node1 = listRemoveHead(list);
         node2 = listRemoveHead(list);
@@ -78,23 +145,32 @@ int main(int argc, char *argv[]) {
         listInsert2(list, newNode);
     }
 
+
     /* traverse tree (list->head->data) to get codes for each character */
-    codes = (char **) malloc(sizeof(char *) * codesLen);
-    for (i = 0; i < codesLen; i++) {
+    codes = (char **) malloc(sizeof(char *) * NUM_CHARS);
+    for (i = 0; i < NUM_CHARS; i++) {  /* initialize codes to NULL */
         codes[i] = NULL;
     }
 
-    createCodes(list->head->data, codes, NULL, 0);
-    printCodes(codes, codesLen);
+
+    createCodes(list->head->data, codes, NULL, 0);\
+
+
+    encode(infile, outfile, codes);
+
+
+
 
     /* cleanup */
-    for (i = 0; i < codesLen; i++) {
+    free(freqTable);
+    for (i = 0; i < NUM_CHARS; i++) {
         if (codes[i] != NULL) {
             free(codes[i]);
         }
     }
-    free(codes);
     listDestroy(list);
+    close(infile);
+    close(outfile);
     return 0;
 }
 

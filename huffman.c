@@ -56,6 +56,13 @@ List *constructHTree(unsigned int *freqTable, int size) {
 }
 
 
+int fileSize(int fd) {
+    struct stat infileStat;
+    fstat(fd, &infileStat);
+    return infileStat.st_size;
+}
+
+
 ReadBuf *readBufCreate(int infile) {
     ReadBuf *rbuf = (ReadBuf *) malloc(sizeof(ReadBuf));
     if (rbuf == NULL) {
@@ -85,7 +92,7 @@ void readBufDestroy(ReadBuf *rbuf) {
 
 /* puts the next byte of infile into nextByte. returns 0 if something was read,
  * or -1 if the end of the file has been reached */
-int readFromBuf(int infile, char *nextByte, ReadBuf *rbuf) {
+int readFromBuf(int infile, unsigned char *nextByte, ReadBuf *rbuf) {
     /* if we're at the end of the buffer,
      * read next chunk from infile into the buffer */
     if (rbuf->index >= rbuf->size) {

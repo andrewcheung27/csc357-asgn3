@@ -25,7 +25,8 @@ int getFirstBit(char byte) {
 
 
 /* returns the next bit of infile as an int, or -1 for end of file */
-int getNextBit(int infile, char *nextByte, int *byteIndex, ReadBuf *rbuf) {
+int getNextBit(int infile, unsigned char *nextByte, int *byteIndex,
+               ReadBuf *rbuf) {
     int result;
 
     if (*byteIndex == 0) {
@@ -42,8 +43,8 @@ int getNextBit(int infile, char *nextByte, int *byteIndex, ReadBuf *rbuf) {
 }
 
 
-void decode(HNode *htree, int infile, int outfile, unsigned long totalFreq) {
-    char nextByte;
+void decode(int infile, int outfile, HNode *htree, unsigned long totalFreq) {
+    unsigned char nextByte;
     int byteIndex;
     int nextBit;
     HNode *node;
@@ -149,12 +150,14 @@ int main(int argc, char *argv[]) {
     parseArgs(argc, argv, &infile, &outfile);
 
 
-    /* read the first byte, which contains the number of unique chars - 1.
-     * if read() returns 0, then 0 bytes were read, so this is an empty file.
-     * if that is the case, nothing will be written to outfile. */
-    if (read(infile, &uniqueChars, 1) < 1) {
+    /* write nothing if infile is empty */
+    if (fileSize(infile) == 0) {
         return 0;
     }
+
+
+    /* read the first byte, which contains the number of unique chars - 1 */
+    read(infile, &uniqueChars, 1);
 
 
     /* freqTable[c] will have the frequency of character c in the infile */
@@ -187,14 +190,14 @@ int main(int argc, char *argv[]) {
 
 
     /* decompress and write to outfile */
-    decode(list->head->data, infile, outfile, totalFreq);
+    decode(infile, outfile, list->head->data, totalFreq);
 
 
     /* cleanup */
-    close(infile);
-    close(outfile);
     free(freqTable);
     listDestroy(list);
+    close(infile);
+    close(outfile);
     return 0;
 }
 
