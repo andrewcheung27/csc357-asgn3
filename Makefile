@@ -26,6 +26,8 @@ htree.o: htree.c
 
 
 tests: hencode hdecode
+	make empty
+	make one
 	make two
 	make frank
 	make pride
@@ -33,26 +35,43 @@ tests: hencode hdecode
 	make war
 
 
+empty: hencode hdecode
+	./hencode tests/empty tests/alsoempty
+	diff tests/empty tests/alsoempty
+	./hdecode tests/alsoempty tests/myempty
+	diff tests/empty tests/myempty
+	rm tests/alsoempty tests/myempty
+
+one: hencode hdecode
+	./hencode tests/singlerepeatingchar tests/coderep
+	./hdecode tests/coderep tests/myrep
+	diff tests/singlerepeatingchar tests/myrep
+	rm tests/coderep tests/myrep
+
 two: hencode hdecode
 	./hencode tests/test2 tests/code2
 	./hdecode tests/code2 tests/out2
 	diff tests/test2 tests/out2
 	rm tests/code2 tests/out2
+
 frank: hencode hdecode
 	./hencode tests/frank tests/agentfrank
 	./hdecode tests/agentfrank tests/myfrank
 	diff tests/frank tests/myfrank
 	rm tests/agentfrank tests/myfrank
+
 pride: hencode hdecode
 	./hencode tests/pride tests/secretpride
 	./hdecode tests/secretpride tests/mypride
 	diff tests/pride tests/mypride
 	rm tests/secretpride tests/mypride
+
 dick: hencode hdecode
 	./hencode tests/dick tests/secretdick
 	./hdecode tests/secretdick tests/mydick
 	diff tests/dick tests/mydick
 	rm tests/secretdick tests/mydick
+
 war: hencode hdecode
 	./hencode tests/warandpeace tests/codewar
 	./hdecode tests/codewar tests/mywar
