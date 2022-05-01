@@ -11,10 +11,11 @@
 /* NUM_CHARS is the number of possible values for a char */
 #define NUM_CHARS 256
 
-/* & ONE_BIT_MASK to zero out everything except the first bit in a char */
-#define ONE_BIT_MASK 0x80
+/* 1000 0000 */
+#define MSB_MASK 0x80
 
 
+/* reads infile and makes frequency table */
 void countChars(int infile, unsigned int *freqTable) {
     unsigned char nextChar;
     ReadBuf *rbuf = readBufCreate(infile);
@@ -24,9 +25,11 @@ void countChars(int infile, unsigned int *freqTable) {
     }
 
     readBufDestroy(rbuf);
+    lseek(infile, 0, SEEK_SET);  /* set offset back to 0 */
 }
 
 
+/* writes metadata for compressed file */
 void writeHeader(int outfile, unsigned int *freqTable) {
     int i;
     int uniqueChars;
@@ -55,28 +58,31 @@ void writeHeader(int outfile, unsigned int *freqTable) {
 }
 
 
+/* writes string version of code to outfile as bits */
 void writeCode(int outfile, char *strCode, unsigned char *byte,
                unsigned int *index, WriteBuf *wbuf) {
     int i = 0;  /* indexing strCode */
 
-    while (strCode[i++]) {
+    while (strCode[i]) {
+        /* write 1 to byte for a 1, otherwise it will remain a 0 */
+        if (strCode[i] == '1') {
+            *byte = *byte | (MSB_MASK >> *index);
+        }
+
+        *index = (*index + 1) % 8;  /* indexing byte */
+
+        /* if byte is finished, write it and reset to 0000 0000 */
         if (*index == 0) {
+            writeToBuf(outfile, (char) *byte, wbuf);
             *byte = 0;
         }
 
-        if (strCode[i] == '1') {
-            *byte = *byte | (ONE_BIT_MASK >> *index);
-        }
-
-        if (*index == 7) {
-            writeToBuf(outfile, (char) *byte, wbuf);
-        }
-
-        *index = (*index + 1) % 8;
+        i++;
     }
 }
 
 
+/* reads infile, writing encoded version of each character to outfile */
 void encode(int infile, int outfile, char **codes) {
     unsigned char nextChar;
     unsigned char writeByte;
@@ -100,7 +106,7 @@ void encode(int infile, int outfile, char **codes) {
     }
 
     /* write anything left in the buffer */
-    if (wbuf->size > 0) {
+    if (wbuf->size) {
         write(outfile, wbuf->buf, wbuf->size);
     }
 
@@ -191,7 +197,6 @@ int main(int argc, char *argv[]) {
 
     writeHeader(outfile, freqTable);
 
-    lseek(infile, 0, SEEK_SET);  /* back to start after countChars */
     encode(infile, outfile, codes);
 
     /* cleanup */
