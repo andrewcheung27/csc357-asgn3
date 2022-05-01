@@ -82,6 +82,21 @@ void decode(int infile, int outfile, HNode *htree,
 }
 
 
+/* special decoding if there is only one unique char */
+void oneCharDecode(int outfile, unsigned char c, int freq) {
+    WriteBuf *wbuf = writeBufCreate(outfile);
+
+    while (freq > 0) {
+        writeToBuf(c, wbuf);
+        freq--;
+    }
+
+    if (wbuf->size) {
+        write(outfile, wbuf->buf, wbuf->size);
+    }
+}
+
+
 /* initializes infile and outfile */
 void parseArgs(int argc, char *argv[], int *infile, int *outfile) {
     /* no more than two args, argc can't be more than 3 */
@@ -171,12 +186,23 @@ int main(int argc, char *argv[]) {
     uniqueChars++;
     totalFreq = 0;
     /* read compressed file header into freqTable */
-    while ((uniqueChars--) > 0) {
+    i = uniqueChars;
+    while (i-- > 0) {
         read(infile, &nextChar, 1);  /* 1 byte: character */
         read(infile, &freq, 4);  /* 4 bytes: frequency of the character */
         freq = ntohl(freq);  /* convert to host byte order */
         freqTable[nextChar] = freq;
         totalFreq += freq;
+    }
+
+    /* special case for files with one unique char */
+    if (uniqueChars == 1) {
+        oneCharDecode(outfile, nextChar, totalFreq);
+
+        free(freqTable);
+        close(infile);
+        close(outfile);
+        return 0;
     }
 
     /* create huffman tree */

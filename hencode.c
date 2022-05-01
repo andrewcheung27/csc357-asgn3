@@ -73,7 +73,7 @@ void writeCode(char *strCode, unsigned char *byte,
 
         /* if byte is finished, write it and reset to 0000 0000 */
         if (*index == 0) {
-            writeToBuf((char) *byte, wbuf);
+            writeToBuf(*byte, wbuf);
             *byte = 0;
         }
 
@@ -160,6 +160,7 @@ int main(int argc, char *argv[]) {
     unsigned int *freqTable;
     char **codes;
     List *list;
+    char *defaultPath;
     int i;
 
     /* parse args to initialize infile and outfile */
@@ -191,8 +192,11 @@ int main(int argc, char *argv[]) {
         codes[i] = NULL;
     }
 
+    /* defaultPath prevents a segfault when creating codes for files with
+     * only one unique char */
+    defaultPath = (char *) malloc(sizeof(char));
     /* traverse tree to get codes for each char */
-    createCodes(list->head->data, codes, NULL, 0);
+    createCodes(list->head->data, codes, defaultPath, 0);
 
     /* encode freqTable and write to outfile */
     writeHeader(outfile, freqTable);
