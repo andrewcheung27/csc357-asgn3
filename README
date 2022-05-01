@@ -1,2 +1,9 @@
 Andrew Cheung (acheun29)
 
+
+make all
+
+./hencode infile [outfile]
+
+./hdecode [(infile | -)] [outfile]
+
