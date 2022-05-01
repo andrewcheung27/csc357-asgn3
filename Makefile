@@ -29,8 +29,12 @@ htree.o: htree.c
 
 t: tests/test.c
 	$(CC) $(CFLAGS) -o t tests/test.c
-hd: hdecode
-	./hdecode tests/peencode2 tests/out2
+two: hencode hdecode
+	./hencode tests/test2 tests/code2
+	./hdecode tests/code2 tests/out2
+war: hencode hdecode
+	./hencode tests/warandpeace tests/codewar
+	./hdecode tests/codewar tests/mywar
 
 
 clean:

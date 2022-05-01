@@ -32,7 +32,7 @@ void writeHeader(int outfile, unsigned int *freqTable) {
     int i;
     int uniqueChars;
     unsigned char c;
-    int freq;
+    unsigned int freq;
 
     /* first byte of header: number of unique characters - 1 */
     uniqueChars = 0;
@@ -56,8 +56,8 @@ void writeHeader(int outfile, unsigned int *freqTable) {
 }
 
 
-void writeCode(int outfile, char *strCode, unsigned char *byte, int *index,
-               WriteBuf *wbuf) {
+void writeCode(int outfile, char *strCode, unsigned char *byte,
+               unsigned int *index, WriteBuf *wbuf) {
     int i = 0;
 
     while (strCode[i++]) {
@@ -81,13 +81,15 @@ void writeCode(int outfile, char *strCode, unsigned char *byte, int *index,
 void encode(int infile, int outfile, char **codes) {
     unsigned char nextChar;
     unsigned char writeByte;
-    int writeByteIndex;
+    unsigned int writeByteIndex;
     ReadBuf *rbuf = readBufCreate(infile);
     WriteBuf *wbuf = writeBufCreate(outfile);
 
     /* read infile chars, find their string code,
      * and write to outfile as bits */
-    while ((nextChar = readFromBuf(infile, &nextChar, rbuf)) == 0) {
+    writeByte = 0;
+    writeByteIndex = 0;
+    while (readFromBuf(infile, &nextChar, rbuf) == 0) {
         writeCode(outfile, codes[nextChar], &writeByte,
                   &writeByteIndex, wbuf);
     }
@@ -97,6 +99,15 @@ void encode(int infile, int outfile, char **codes) {
     if (writeByteIndex) {
         writeToBuf(outfile, (char) writeByte, wbuf);
     }
+
+    /* write anything left in the buffer */
+    if (wbuf->size > 0) {
+        write(outfile, wbuf->buf, wbuf->size);
+    }
+
+    /* cleanup */
+    readBufDestroy(rbuf);
+    writeBufDestroy(wbuf);
 }
 
 
@@ -147,9 +158,6 @@ int main(int argc, char *argv[]) {
     char **codes;
 
     List *list;
-    HNode *node1;
-    HNode *node2;
-    HNode *newNode;
 
     /* parse args to initialize infile and outfile */
     parseArgs(argc, argv, &infile, &outfile);
@@ -172,26 +180,7 @@ int main(int argc, char *argv[]) {
     /* count all chars in infile and put them in freqTable */
     countChars(infile, freqTable);
 
-    /* put freqTable into sorted linked list of huffman trees */
-    list = listCreate();
-    for (i = 0; i < NUM_CHARS; i++) {
-        if (freqTable[i] > 0) {
-            node1 = htreeCreate(freqTable[i], i);
-            listInsert(list, node1);
-        }
-    }
-
-    /* combine and re-insert htrees until we have only one */
-    while (list->size > 1) {
-        node1 = listRemoveHead(list);
-        node2 = listRemoveHead(list);
-
-        newNode = htreeCreate(node1->freq + node2->freq,
-                              node1->chr < node2->chr ? node1->chr : node2->chr);
-        newNode->left = node1;
-        newNode->right = node2;
-        listInsert2(list, newNode);
-    }
+    list = constructHTree(freqTable, NUM_CHARS);
 
     /* traverse tree (list->head->data) to get codes for each character */
     codes = (char **) malloc(sizeof(char *) * NUM_CHARS);
@@ -203,6 +192,7 @@ int main(int argc, char *argv[]) {
 
     writeHeader(outfile, freqTable);
 
+    lseek(infile, 0, SEEK_SET);  /* back to start after countChars */
     encode(infile, outfile, codes);
 
     /* cleanup */
