@@ -20,7 +20,7 @@ void countChars(int infile, unsigned int *freqTable) {
     unsigned char nextChar;
     ReadBuf *rbuf = readBufCreate(infile);
 
-    while (readFromBuf(infile, &nextChar, rbuf) == 0) {
+    while (readFromBuf(&nextChar, rbuf) == 0) {
         freqTable[nextChar]++;
     }
 
@@ -51,7 +51,7 @@ void writeHeader(int outfile, unsigned int *freqTable) {
         if (freqTable[i] > 0) {
             c = (unsigned char) i;
             write(outfile, &c, 1);  /* 1 byte: character */
-            freq = htonl(freqTable[i]);  /* unsigned int, network byte order */
+            freq = htonl(freqTable[i]);  /* network byte order */
             write(outfile, &freq, 4);  /* 4 bytes: freq */
         }
     }
@@ -59,7 +59,7 @@ void writeHeader(int outfile, unsigned int *freqTable) {
 
 
 /* writes string version of code to outfile as bits */
-void writeCode(int outfile, char *strCode, unsigned char *byte,
+void writeCode(char *strCode, unsigned char *byte,
                unsigned int *index, WriteBuf *wbuf) {
     int i = 0;  /* indexing strCode */
 
@@ -73,7 +73,7 @@ void writeCode(int outfile, char *strCode, unsigned char *byte,
 
         /* if byte is finished, write it and reset to 0000 0000 */
         if (*index == 0) {
-            writeToBuf(outfile, (char) *byte, wbuf);
+            writeToBuf((char) *byte, wbuf);
             *byte = 0;
         }
 
@@ -94,15 +94,14 @@ void encode(int infile, int outfile, char **codes) {
      * and write to outfile as bits */
     writeByte = 0;
     writeByteIndex = 0;
-    while (readFromBuf(infile, &nextChar, rbuf) == 0) {
-        writeCode(outfile, codes[nextChar], &writeByte,
-                  &writeByteIndex, wbuf);
+    while (readFromBuf(&nextChar, rbuf) == 0) {
+        writeCode(codes[nextChar], &writeByte,&writeByteIndex, wbuf);
     }
 
     /* write the last byte if it doesn't have all 8 bits filled,
      * empty spaces are padded with zeroes */
     if (writeByteIndex) {
-        writeToBuf(outfile, (char) writeByte, wbuf);
+        writeToBuf((char) writeByte, wbuf);
     }
 
     /* write anything left in the buffer */
@@ -158,11 +157,10 @@ int main(int argc, char *argv[]) {
     int infile;
     int outfile;
 
-    int i;
     unsigned int *freqTable;
     char **codes;
-
     List *list;
+    int i;
 
     /* parse args to initialize infile and outfile */
     parseArgs(argc, argv, &infile, &outfile);
@@ -193,10 +191,13 @@ int main(int argc, char *argv[]) {
         codes[i] = NULL;
     }
 
+    /* traverse tree to get codes for each char */
     createCodes(list->head->data, codes, NULL, 0);
 
+    /* encode freqTable and write to outfile */
     writeHeader(outfile, freqTable);
 
+    /* encode the rest of infile */
     encode(infile, outfile, codes);
 
     /* cleanup */
