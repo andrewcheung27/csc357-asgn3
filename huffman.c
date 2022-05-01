@@ -70,6 +70,7 @@ ReadBuf *readBufCreate(int infile) {
         exit(EXIT_FAILURE);
     }
 
+    rbuf->fd = infile;
     rbuf->index = 0;
     rbuf->size = 0;
     rbuf->capacity = bufCapacity(infile);
@@ -92,11 +93,11 @@ void readBufDestroy(ReadBuf *rbuf) {
 
 /* puts the next byte of infile into nextByte. returns 0 if something was read,
  * or -1 if the end of the file has been reached */
-int readFromBuf(int infile, unsigned char *nextByte, ReadBuf *rbuf) {
+int readFromBuf(unsigned char *nextByte, ReadBuf *rbuf) {
     /* if we're at the end of the buffer,
      * read next chunk from infile into the buffer */
     if (rbuf->index >= rbuf->size) {
-        rbuf->size = read(infile, rbuf->buf, rbuf->capacity);
+        rbuf->size = read(rbuf->fd, rbuf->buf, rbuf->capacity);
         if (rbuf->size == 0) {  /* return -1 for end of file */
             return -1;
         }
@@ -117,6 +118,7 @@ WriteBuf *writeBufCreate(int outfile) {
         exit(EXIT_FAILURE);
     }
 
+    wbuf->fd = outfile;
     wbuf->size = 0;
     wbuf->capacity = bufCapacity(outfile);
 
@@ -136,13 +138,14 @@ void writeBufDestroy(WriteBuf *wbuf) {
 }
 
 
-void writeToBuf(int outfile, char c, WriteBuf *wbuf) {
+void writeToBuf(char c, WriteBuf *wbuf) {
     /* write to outfile when buffer is full */
     if (wbuf->size >= wbuf->capacity) {
-        write(outfile, wbuf->buf, wbuf->size);
+        write(wbuf->fd, wbuf->buf, wbuf->size);
         wbuf->size = 0;
     }
 
     (wbuf->buf)[wbuf->size] = c;
     (wbuf->size)++;
 }
+

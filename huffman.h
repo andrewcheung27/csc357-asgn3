@@ -2,6 +2,7 @@
 
 typedef struct ReadBuf {
     char *buf;
+    int fd;
     int index;
     int size;
     int capacity;
@@ -9,6 +10,7 @@ typedef struct ReadBuf {
 
 typedef struct WriteBuf {
     char *buf;
+    int fd;
     int size;
     int capacity;
 } WriteBuf;
@@ -22,10 +24,11 @@ ReadBuf *readBufCreate(int infile);
 
 void readBufDestroy(ReadBuf *rbuf);
 
-int readFromBuf(int infile, unsigned char *nextByte, ReadBuf *rbuf);
+int readFromBuf(unsigned char *nextByte, ReadBuf *rbuf);
 
 WriteBuf *writeBufCreate(int outfile);
 
 void writeBufDestroy(WriteBuf *wbuf);
 
-void writeToBuf(int outfile, char c, WriteBuf *wbuf);
+void writeToBuf(char c, WriteBuf *wbuf);
+
