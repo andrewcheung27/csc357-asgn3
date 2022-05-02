@@ -56,7 +56,16 @@ void decode(int infile, int outfile, HNode *htree,
     WriteBuf *wbuf = writeBufCreate(outfile);
 
     /* traverse huffman tree */
-    while (totalFreq > 0 && (bit = getNextBit(&byte, &index, rbuf)) != -1) {
+    while (totalFreq > 0) {
+        bit = getNextBit(&byte, &index, rbuf);
+
+        /* error, expecting more chars than there actually are.
+         * might as well finish up the program though */
+        if (bit == -1) {
+            fprintf(stderr, "encoded file may not be valid\n");
+            break;
+        }
+
         if (bit == 0) {
             node = node->left;
         }
@@ -173,11 +182,12 @@ int main(int argc, char *argv[]) {
     }
 
     /* read the first byte, which contains the number of unique chars - 1 */
-    read(infile, &uniqueChars, 1);
+    read(infile, &nextChar, 1);
 
     /* increment uniqueChars because it was the number of unique chars - 1,
      * so that it could fit in a byte */
-    uniqueChars++;
+    uniqueChars = nextChar;
+    uniqueChars++;  /* transfer to int, then increment, so no overflow */
     totalFreq = 0;
     /* read compressed file header into freqTable */
     i = uniqueChars;
@@ -201,7 +211,6 @@ int main(int argc, char *argv[]) {
 
     /* create huffman tree */
     list = constructHTree(freqTable, NUM_CHARS);
-
     if (list == NULL || list->head == NULL) {
         fprintf(stderr, "file could not be decoded\n");
         exit(EXIT_FAILURE);
