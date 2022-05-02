@@ -46,7 +46,7 @@ List *constructHTree(unsigned int *freqTable, int size) {
         node2 = listRemoveHead(list);
 
         newNode = htreeCreate(node1->freq + node2->freq,
-                              node1->chr < node2->chr ? node1->chr : node2->chr);
+                       node1->chr < node2->chr ? node1->chr : node2->chr);
         newNode->left = node1;
         newNode->right = node2;
         listInsert2(list, newNode);
@@ -91,7 +91,8 @@ void readBufDestroy(ReadBuf *rbuf) {
 }
 
 
-/* puts the next byte of infile into nextByte. returns 0 if something was read,
+/* puts the next byte of infile into nextByte. 
+ * returns 0 if something was read,
  * or -1 if the end of the file has been reached */
 int readFromBuf(unsigned char *nextByte, ReadBuf *rbuf) {
     /* if we're at the end of the buffer,
