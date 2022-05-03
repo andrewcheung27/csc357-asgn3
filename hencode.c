@@ -105,9 +105,7 @@ void encode(int infile, int outfile, char **codes) {
     }
 
     /* write anything left in the buffer */
-    if (wbuf->size) {
-        write(outfile, wbuf->buf, wbuf->size);
-    }
+    writeBufFlush(wbuf);
 
     /* cleanup */
     readBufDestroy(rbuf);

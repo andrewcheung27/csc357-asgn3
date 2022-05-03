@@ -30,5 +30,7 @@ WriteBuf *writeBufCreate(int outfile);
 
 void writeBufDestroy(WriteBuf *wbuf);
 
+void writeBufFlush(WriteBuf * wbuf);
+
 void writeToBuf(char c, WriteBuf *wbuf);
 

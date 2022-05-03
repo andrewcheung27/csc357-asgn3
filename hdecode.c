@@ -81,9 +81,7 @@ void decode(int infile, int outfile, HNode *htree,
     }
 
     /* write anything left in the buffer */
-    if (wbuf->size) {
-        write(outfile, wbuf->buf, wbuf->size);
-    }
+    writeBufFlush(wbuf);
 
     /* cleanup */
     readBufDestroy(rbuf);
@@ -100,9 +98,8 @@ void oneCharDecode(int outfile, unsigned char c, int freq) {
         freq--;
     }
 
-    if (wbuf->size) {
-        write(outfile, wbuf->buf, wbuf->size);
-    }
+    /* write anything left in the buffer */
+    writeBufFlush(wbuf);
 }
 
 
@@ -182,7 +179,9 @@ int main(int argc, char *argv[]) {
     }
 
     /* read the first byte, which contains the number of unique chars - 1 */
-    read(infile, &nextChar, 1);
+    if (read(infile, &nextChar, 1) == -1) {
+        perror("read");
+    }
 
     /* increment uniqueChars because it was the number of unique chars - 1,
      * so that it could fit in a byte */
@@ -192,8 +191,12 @@ int main(int argc, char *argv[]) {
     /* read compressed file header into freqTable */
     i = uniqueChars;
     while (i-- > 0) {
-        read(infile, &nextChar, 1);  /* 1 byte: character */
-        read(infile, &freq, 4);  /* 4 bytes: frequency of the character */
+        if (read(infile, &nextChar, 1) == -1) { /* 1 byte: character */
+            perror("read");
+        }
+        if (read(infile, &freq, 4) == -1) {  /* 4 bytes: frequency */
+            perror("read");
+        }
         freq = ntohl(freq);  /* convert to host byte order */
         freqTable[nextChar] = freq;
         totalFreq += freq;
